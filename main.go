@@ -8,13 +8,12 @@ import (
 	"go/parser"
 	"go/token"
 	"html/template"
+	"io"
 	"io/fs"
 	"os"
 	"runtime"
 	"slices"
 	"strings"
-
-	"github.com/spf13/afero"
 )
 
 //go:embed alias.tmpl
@@ -85,16 +84,6 @@ func ResolvePath(pkgname string) string {
 
 }
 
-// SymbolsToStatements produces syntactically valid go statements
-func SymbolsToStatements(pkg string, symbols []string) []string {
-	statements := make([]string, len(symbols))
-	for i, s := range symbols {
-		line := fmt.Sprintf("var %s = %s.%s", s, pkg, s)
-		statements[i] = line
-	}
-	return statements
-}
-
 func noTestFiles(f fs.FileInfo) bool {
 	if f.IsDir() {
 		return false
@@ -134,7 +123,8 @@ func Difference(src, dest []string) []string {
 	return final
 }
 
-func GoCode(f afero.File, srcpkg, destpkg string, vars, funcs, interfaces []string) {
+// use AST information to populate alias.tmpl and write results
+func GoCode(w io.Writer, srcpkg, destpkg string, vars, funcs, interfaces []string) {
 
 	data := struct {
 		Src        string
@@ -151,7 +141,7 @@ func GoCode(f afero.File, srcpkg, destpkg string, vars, funcs, interfaces []stri
 		panic(err)
 	}
 
-	err = tmpl.Execute(f, data)
+	err = tmpl.Execute(w, data)
 	if err != nil {
 		panic(err)
 	}
