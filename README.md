@@ -1,19 +1,15 @@
 # pkgalias
 
-pkgalias allows you to generate an alias of a Go package. This is useful for "shadowing" an entire package.
-
-It generates code of the form:
+pkgalias allows you to generate an alias of a Go package. This is useful for "shadowing" an entire package. It generates code of the form:
 
 ```go
 var SomeFunc = otherpage.SomeFunc
 var SomeVar = otherpackage.SomeVar
 ```
 
-Whichever exported symbols (variables, constants, and functions) you've already defined will not be included.
+Whichever exported symbols (variables, constants, and functions) you've already defined will not be included. This lets your users take advantage of the full power of the source package, while benefiting from those exported symbols which you've chosen to modify.
 
-This let's your users take advantage of the full power of the source package, while benefiting from those exported symbols which you've chosen to modify.
-
-The included binary is meant to be used for code generation. Ex:
+The included binary is meant to be used in `//go:generate` style code generation. Ex:
 
 ```sh
 $ go install github.com/sean9999/pkgalias/cmd/pkgalias@latest

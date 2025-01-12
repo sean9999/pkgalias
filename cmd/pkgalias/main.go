@@ -6,15 +6,18 @@ import (
 	"os"
 
 	"github.com/sean9999/pkgalias"
+	"github.com/spf13/afero"
 )
 
 func main() {
 
 	env := struct {
-		OutSteam  io.Writer
-		ErrStream io.Writer
+		Filesystem afero.Fs
+		Args       []string
+		ErrStream  io.Writer
 	}{
-		os.Stdout,
+		afero.NewOsFs(),
+		os.Args,
 		os.Stderr,
 	}
 
@@ -25,25 +28,32 @@ func main() {
 		return
 	}
 
-	srcPkgName := os.Args[1]
+	srcPkgName := env.Args[1]
 
-	targetPkgName := pkgalias.PackageNameFromPath(os.Args[2])
+	targetPkgName := pkgalias.PackageNameFromPath(env.Args[2])
 
 	//	all exported symbols we've already defined
-	targetSymbols := pkgalias.Symbols(targetPkgName, os.Args[2])
+	tvars, tfuns, tints := pkgalias.Symbols(targetPkgName, env.Args[2])
 
 	//	all exported symbols from the package we wish to shadow
-	sourceSymbols := pkgalias.Symbols(srcPkgName, pkgalias.ResolvePath(os.Args[1]))
+	svars, sfuns, sints := pkgalias.Symbols(srcPkgName, pkgalias.ResolvePath(env.Args[1]))
 
 	//	all elements from src minus target
-	diff := pkgalias.Difference(sourceSymbols, targetSymbols)
+	dvars := pkgalias.Difference(svars, tvars)
+	dfuns := pkgalias.Difference(sfuns, tfuns)
+	dints := pkgalias.Difference(sints, tints)
 
-	//	convert that to go statements
-	statements := pkgalias.SymbolsToStatements(srcPkgName, diff)
-
-	//	write to output
-	for _, s := range statements {
-		fmt.Fprintln(env.OutSteam, s)
+	//	create or truncate pkgalias.go and open for writing
+	filename := fmt.Sprintf("%s/pkgalias.go", env.Args[2])
+	_, err := env.Filesystem.Create(filename)
+	if err != nil {
+		panic(err)
 	}
+	f, err := env.Filesystem.OpenFile(filename, os.O_RDWR, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	pkgalias.GoCode(f, srcPkgName, targetPkgName, dvars, dfuns, dints)
 
 }
